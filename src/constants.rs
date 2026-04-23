@@ -2,6 +2,10 @@ pub const MEMORY_SIZE: usize = 4096;
 
 pub const FONT_SIZE: usize = 80;
 
+// 字体数据起始地址
+// 前面 0x000-0x1FFF 随便哪里都能存放字体数据
+// 但是 0xFX29 指令，需要用到这个字体数据起始地址位置
+// 所以配置为常量
 pub const FONT_START_ADDRESS: usize = 0x50;
 
 pub const PROGRAM_START_ADDRESS: usize = 0x200;
@@ -27,3 +31,4 @@ pub const FONT_DATA: [u8; FONT_SIZE] = [
 
 pub const WINDOW_WIDTH: usize = 64;
 pub const WINDOW_HEIGHT: usize = 32;
+pub const SCALE: usize = 10;
