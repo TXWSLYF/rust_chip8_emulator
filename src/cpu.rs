@@ -31,6 +31,9 @@ pub struct CPU {
     // FX0A 等待按键时，记录要写入的寄存器索引
     waiting_for_key: Option<usize>,
 
+    // CXNN 需要的伪随机数状态
+    rng_state: u32,
+
     // 显示器
     pub display: [[bool; WINDOW_WIDTH]; WINDOW_HEIGHT],
 }
@@ -48,6 +51,7 @@ impl CPU {
             sound_timer: 0,
             keypad: [false; 16],
             waiting_for_key: None,
+            rng_state: 0x1234_5678,
             display: [[false; WINDOW_WIDTH]; WINDOW_HEIGHT],
         };
         cpu.memory[FONT_START_ADDRESS..FONT_START_ADDRESS + FONT_SIZE].copy_from_slice(&FONT_DATA);
@@ -56,6 +60,16 @@ impl CPU {
 }
 
 impl CPU {
+    fn rand_byte(&mut self) -> u8 {
+        // xorshift32: 小巧、确定性、无需依赖
+        let mut x = self.rng_state;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        self.rng_state = x;
+        (x & 0xFF) as u8
+    }
+
     fn first_pressed_key(&self) -> Option<u8> {
         self.keypad
             .iter()
@@ -344,6 +358,10 @@ impl CPU {
                 // 7XNN: Vx += NN
                 // 注意：x 是寄存器索引，nn 是提取出的低 8 位
                 self.registers[x as usize] = self.registers[x as usize].wrapping_add(nn);
+            }
+            (0xC, _, _, _) => {
+                // CXNN: Set Vx = random byte AND NN
+                self.registers[x as usize] = self.rand_byte() & nn;
             }
             (0xD, _, _, _) => {
                 // DXYN: 绘图
