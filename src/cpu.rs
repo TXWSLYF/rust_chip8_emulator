@@ -108,6 +108,11 @@ impl CPU {
                 // ANNN: 加载 NNN 到 I 寄存器
                 self.index_register = nnn;
             }
+            (0x7, _, _, _) => {
+                // 7XNN: Vx += NN
+                // 注意：x 是寄存器索引，nn 是提取出的低 8 位
+                self.registers[x as usize] = self.registers[x as usize].wrapping_add(nn);
+            }
             (0xD, _, _, _) => {
                 // DXYN: 绘图
                 // % WINDOW_WIDTH 和 % WINDOW_HEIGHT 是为了确保坐标在显示范围内, 可以实现环绕显示
