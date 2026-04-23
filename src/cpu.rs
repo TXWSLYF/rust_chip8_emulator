@@ -25,6 +25,12 @@ pub struct CPU {
     // 声音计时器
     sound_timer: u8,
 
+    // 16 键键盘状态 (0x0..=0xF)
+    keypad: [bool; 16],
+
+    // FX0A 等待按键时，记录要写入的寄存器索引
+    waiting_for_key: Option<usize>,
+
     // 显示器
     pub display: [[bool; WINDOW_WIDTH]; WINDOW_HEIGHT],
 }
@@ -40,6 +46,8 @@ impl CPU {
             index_register: 0,
             delay_timer: 0,
             sound_timer: 0,
+            keypad: [false; 16],
+            waiting_for_key: None,
             display: [[false; WINDOW_WIDTH]; WINDOW_HEIGHT],
         };
         cpu.memory[FONT_START_ADDRESS..FONT_START_ADDRESS + FONT_SIZE].copy_from_slice(&FONT_DATA);
@@ -48,6 +56,19 @@ impl CPU {
 }
 
 impl CPU {
+    fn first_pressed_key(&self) -> Option<u8> {
+        self.keypad
+            .iter()
+            .position(|&pressed| pressed)
+            .map(|idx| idx as u8)
+    }
+
+    pub fn set_key(&mut self, key: usize, pressed: bool) {
+        if key < self.keypad.len() {
+            self.keypad[key] = pressed;
+        }
+    }
+
     pub fn load_rom(&mut self, rom: &[u8]) -> Result<String, String> {
         let start = PROGRAM_START_ADDRESS;
         let end = start + rom.len();
@@ -68,6 +89,17 @@ impl CPU {
 
 impl CPU {
     pub fn tick(&mut self) {
+        // 如果处在 FX0A 等待按键状态，就暂停执行，直到检测到按键
+        if let Some(target_reg) = self.waiting_for_key {
+            if let Some(key) = self.first_pressed_key() {
+                self.registers[target_reg] = key;
+                self.waiting_for_key = None;
+                // 继续执行 FX0A 的下一条指令
+                self.program_counter += 2;
+            }
+            return;
+        }
+
         // 1. Fetch
         let op_byte1 = self.memory[self.program_counter] as u16;
         let op_byte2 = self.memory[self.program_counter + 1] as u16;
@@ -79,6 +111,15 @@ impl CPU {
 
         // 3. Decode & Execute
         self.execute(opcode);
+    }
+
+    pub fn tick_timers(&mut self) {
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
+        }
+        if self.sound_timer > 0 {
+            self.sound_timer -= 1;
+        }
     }
 
     fn execute(&mut self, opcode: u16) {
@@ -260,6 +301,24 @@ impl CPU {
                 // 传统的加法，通常不考虑溢出设置 VF (但某些 Quirk 会要求设置)
                 self.index_register = self.index_register.wrapping_add(vx_value);
             }
+            (0xF, _, 0x1, 0x5) => {
+                // FX15: Set delay timer = Vx
+                self.delay_timer = self.registers[x as usize];
+            }
+            (0xF, _, 0x0, 0x7) => {
+                // FX07: Set Vx = delay timer value
+                self.registers[x as usize] = self.delay_timer;
+            }
+            (0xF, _, 0x0, 0xA) => {
+                // FX0A: Wait for a key press, store the value of the key in Vx
+                if let Some(key) = self.first_pressed_key() {
+                    self.registers[x as usize] = key;
+                } else {
+                    // 没有按键则阻塞：把 PC 拉回到当前指令，等待下一帧输入
+                    self.waiting_for_key = Some(x as usize);
+                    self.program_counter -= 2;
+                }
+            }
             (0x8, _, _, 0x7) => {
                 // 8XY7: Vx = Vy - Vx, set VF = NOT borrow
                 let vx = self.registers[x as usize];
@@ -276,6 +335,10 @@ impl CPU {
             (0xA, _, _, _) => {
                 // ANNN: 加载 NNN 到 I 寄存器
                 self.index_register = nnn;
+            }
+            (0xB, _, _, _) => {
+                // BNNN: Jump to location NNN + V0
+                self.program_counter = (nnn + self.registers[0] as u16) as usize;
             }
             (0x7, _, _, _) => {
                 // 7XNN: Vx += NN
@@ -312,6 +375,20 @@ impl CPU {
                             self.display[dy][dx] ^= true;
                         }
                     }
+                }
+            }
+            (0xE, _, 0x9, 0xE) => {
+                // EX9E: Skip next instruction if key with the value of Vx is pressed
+                let key = (self.registers[x as usize] & 0x0F) as usize;
+                if self.keypad[key] {
+                    self.program_counter += 2;
+                }
+            }
+            (0xE, _, 0xA, 0x1) => {
+                // EXA1: Skip next instruction if key with the value of Vx is not pressed
+                let key = (self.registers[x as usize] & 0x0F) as usize;
+                if !self.keypad[key] {
+                    self.program_counter += 2;
                 }
             }
             // ... 后续慢慢填充其他指令
