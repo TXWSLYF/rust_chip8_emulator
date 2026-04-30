@@ -46,12 +46,12 @@ const KEY_LAYOUT = [
 ] as const;
 
 const BUILTIN_ROMS = [
-  { id: 'chip8-logo', name: 'CHIP-8 Logo', url: '/1-chip8-logo.ch8' },
-  { id: 'ibm-logo', name: 'IBM Logo', url: '/2-ibm-logo.ch8' },
-  { id: 'corax', name: 'Corax+ (Test)', url: '/3-corax+.ch8' },
-  { id: 'flags', name: 'Flags', url: '/4-flags.ch8' },
-  { id: 'quirks', name: 'Quirks (Test)', url: '/5-quirks.ch8' },
-  { id: 'breakout', name: 'BR8KOUT', url: '/br8kout.ch8' },
+  { id: 'chip8-logo', name: 'CHIP-8 Logo', url: '1-chip8-logo.ch8' },
+  { id: 'ibm-logo', name: 'IBM Logo', url: '2-ibm-logo.ch8' },
+  { id: 'corax', name: 'Corax+ (Test)', url: '3-corax+.ch8' },
+  { id: 'flags', name: 'Flags', url: '4-flags.ch8' },
+  { id: 'quirks', name: 'Quirks (Test)', url: '5-quirks.ch8' },
+  { id: 'breakout', name: 'BR8KOUT', url: 'br8kout.ch8' },
 ] as const;
 
 type StatusTone = 'idle' | 'loading' | 'ready' | 'error';
@@ -476,7 +476,9 @@ export default function App() {
 
     try {
       setStatus({ tone: 'loading', code: 'loading_rom', vars: { name: chosen.name } });
-      const response = await fetch(chosen.url);
+      const baseUrl = import.meta.env.BASE_URL || '/';
+      const romUrl = `${baseUrl}${baseUrl.endsWith('/') ? '' : '/'}${chosen.url}`;
+      const response = await fetch(romUrl);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
