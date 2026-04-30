@@ -3,5 +3,18 @@ name = "rust_chip8_emulator"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "chip8"
+path = "src/main.rs"
+required-features = ["native"]
+
+[features]
+default = ["native"]
+native = ["dep:minifb"]
+
 [dependencies]
-minifb = "0.24.0"
+minifb = { version = "0.24.0", optional = true }
+wasm-bindgen = "0.2"

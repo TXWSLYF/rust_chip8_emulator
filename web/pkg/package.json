@@ -1,0 +1,15 @@
+{
+  "name": "rust_chip8_emulator",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "rust_chip8_emulator_bg.wasm",
+    "rust_chip8_emulator.js",
+    "rust_chip8_emulator.d.ts"
+  ],
+  "main": "rust_chip8_emulator.js",
+  "types": "rust_chip8_emulator.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

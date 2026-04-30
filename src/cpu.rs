@@ -34,8 +34,8 @@ pub struct CPU {
     // CXNN 需要的伪随机数状态
     rng_state: u32,
 
-    // 显示器
-    pub display: [[bool; WINDOW_WIDTH]; WINDOW_HEIGHT],
+    // 显示器（64x32）
+    screen: [[bool; WINDOW_WIDTH]; WINDOW_HEIGHT],
 }
 
 impl CPU {
@@ -52,10 +52,15 @@ impl CPU {
             keypad: [false; 16],
             waiting_for_key: None,
             rng_state: 0x1234_5678,
-            display: [[false; WINDOW_WIDTH]; WINDOW_HEIGHT],
+            screen: [[false; WINDOW_WIDTH]; WINDOW_HEIGHT],
         };
         cpu.memory[FONT_START_ADDRESS..FONT_START_ADDRESS + FONT_SIZE].copy_from_slice(&FONT_DATA);
         cpu
+    }
+
+    /// 只读访问显示缓冲（宿主用于渲染，勿直接写入）。
+    pub fn display(&self) -> &[[bool; WINDOW_WIDTH]; WINDOW_HEIGHT] {
+        &self.screen
     }
 }
 
@@ -149,7 +154,7 @@ impl CPU {
         match (op, x, y, n) {
             (0, 0, 0xE, 0) => {
                 // 00E0: 清屏
-                self.display = [[false; WINDOW_WIDTH]; WINDOW_HEIGHT];
+                self.screen = [[false; WINDOW_WIDTH]; WINDOW_HEIGHT];
             }
             (0x0, 0x0, 0xE, 0xE) => {
                 // 00EE: Return from a subroutine
@@ -385,12 +390,12 @@ impl CPU {
                             let dy = (y_coord + row) % WINDOW_HEIGHT;
 
                             // 检查是否发生碰撞（目标位置已经是 true）
-                            if self.display[dy][dx] {
+                            if self.screen[dy][dx] {
                                 self.registers[0xF] = 1;
                             }
 
                             // 异或操作：true ^ true = false, false ^ true = true
-                            self.display[dy][dx] ^= true;
+                            self.screen[dy][dx] ^= true;
                         }
                     }
                 }
