@@ -19,7 +19,8 @@
 | `src/constants.rs` | 内存、分辨率、字体等常量 |
 | `src/main.rs` | 桌面可执行文件：窗口、键盘、计时、渲染 |
 | `src/wasm.rs` | 仅在 `wasm32` 下编译，导出 `WasmEmulator` |
-| `web/index.html` | 浏览器 UI：选 ROM、`canvas`、键位 |
+| `web/index.html` | Vite 入口 HTML |
+| `web/src/` | React + Tailwind 前端界面 |
 | `web/pkg/` | 由 `wasm-pack` 生成（`.wasm` + `.js`），缺失时需自行构建 |
 
 ## 桌面运行
@@ -64,14 +65,25 @@ cargo build --no-default-features
    wasm-pack build --target web --no-default-features --out-dir web/pkg
    ```
 
-3. **务必通过本地 HTTP 服务**打开页面（避免 `file://` 下 ES module / Wasm 加载失败），例如：
+3. 安装前端依赖：
 
    ```bash
-   cd web
-   python3 -m http.server 8080
+   npm install
    ```
 
-   浏览器访问 `http://localhost:8080`，选择 ROM 后开始运行。键位与桌面版相同。
+4. 启动开发服务器：
+
+   ```bash
+   npm run dev
+   ```
+
+   浏览器访问终端输出的地址（默认 `http://localhost:5173`），选择 ROM 后开始运行。键位与桌面版相同。
+
+5. 生产构建：
+
+   ```bash
+   npm run build
+   ```
 
 ## 开发说明
 

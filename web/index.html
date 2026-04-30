@@ -1,111 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CHIP-8 (WASM)</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 1rem auto; padding: 0 1rem; }
-    canvas { display: block; margin-top: 1rem; image-rendering: pixelated; border: 1px solid #333; }
-    label { display: block; margin-top: 0.5rem; }
-    code { font-size: 0.9rem; }
-  </style>
-</head>
-<body>
-  <h1>CHIP-8 网页版</h1>
-  <p>选择 ROM 文件后自动运行。键位与桌面版一致：1–4 / QWER / ASDF / ZXCV 对应十六键。</p>
-  <label>ROM：<input type="file" id="rom" accept="*/*" /></label>
-  <canvas id="screen" width="640" height="320"></canvas>
-  <p><small>请用本地 HTTP 打开本页（避免 <code>file://</code> 下 ES module / Wasm 加载失败），例如：<code>cd web &amp;&amp; python3 -m http.server 8080</code> 后访问 <code>http://localhost:8080</code>。</small></p>
-  <p><small>若 <code>web/pkg</code> 缺失，在项目根目录执行：<code>wasm-pack build --target web --no-default-features --out-dir web/pkg</code>。</small></p>
-
-  <script type="module">
-    import init, { WasmEmulator } from './pkg/rust_chip8_emulator.js';
-
-    const SCALE = 10;
-    const W = 64;
-    const H = 32;
-
-    /** @type {Record<string, number>} 物理键 -> CHIP-8 键 0x0..0xF */
-    const KEY_MAP = {
-      Digit1: 0x1, Digit2: 0x2, Digit3: 0x3, Digit4: 0xc,
-      KeyQ: 0x4, KeyW: 0x5, KeyE: 0x6, KeyR: 0xd,
-      KeyA: 0x7, KeyS: 0x8, KeyD: 0x9, KeyF: 0xe,
-      KeyZ: 0xa, KeyX: 0x0, KeyC: 0xb, KeyV: 0xf,
-    };
-
-    const wasm = await init();
-    const memory = wasm.memory;
-
-    const canvas = document.getElementById('screen');
-    canvas.width = W * SCALE;
-    canvas.height = H * SCALE;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('2d context unavailable');
-
-    const native = document.createElement('canvas');
-    native.width = W;
-    native.height = H;
-    const nctx = native.getContext('2d');
-    if (!nctx) throw new Error('native 2d context unavailable');
-
-    const img = nctx.createImageData(W, H);
-
-    let emu = null;
-    let timerAccMs = 0;
-    const TIMER_STEP_MS = 1000 / 60;
-    const CYCLES_PER_FRAME = 10;
-
-    function setKeyFromEvent(ev, pressed) {
-      if (!emu) return;
-      const k = KEY_MAP[ev.code];
-      if (k === undefined) return;
-      ev.preventDefault();
-      emu.set_key(k, pressed);
-    }
-
-    window.addEventListener('keydown', (e) => setKeyFromEvent(e, true));
-    window.addEventListener('keyup', (e) => setKeyFromEvent(e, false));
-
-    let lastTs = null;
-
-    function frame(ts) {
-      requestAnimationFrame(frame);
-      if (!emu) return;
-
-      if (lastTs === null) lastTs = ts;
-      const dt = ts - lastTs;
-      lastTs = ts;
-      timerAccMs += dt;
-
-      for (let i = 0; i < CYCLES_PER_FRAME; i++) emu.tick();
-
-      while (timerAccMs >= TIMER_STEP_MS) {
-        emu.tick_timers();
-        timerAccMs -= TIMER_STEP_MS;
-      }
-
-      emu.sync_rgba();
-      const ptr = emu.rgbaPtr();
-      const len = emu.rgbaLen();
-      const buf = new Uint8Array(memory.buffer, ptr, len);
-      img.data.set(buf);
-      nctx.putImageData(img, 0, 0);
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(native, 0, 0, W * SCALE, H * SCALE);
-    }
-
-    document.getElementById('rom').addEventListener('change', async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const buf = new Uint8Array(await file.arrayBuffer());
-      emu = new WasmEmulator();
-      emu.load_rom(buf);
-      lastTs = null;
-      timerAccMs = 0;
-    });
-
-    requestAnimationFrame(frame);
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CHIP-8 Web Player</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
